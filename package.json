@@ -1,0 +1,21 @@
+{
+  "name": "mailer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js" 
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "googleapis": "^61.0.0",
+    "nodemon": "^2.0.6"
+  },
+  "devDependencies": {
+    "eslint": "^7.11.0",
+    "nodemon": "^2.0.6"
+  }
+}
