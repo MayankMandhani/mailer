@@ -1,14 +1,20 @@
-const { google } = require("googleapis");
-require("dotenv").config();
-const fs = require("fs");
-const googleConfig = {
-  clientId: process.env.GOOGLE_CLIENTID, // e.g. asdfghjkljhgfdsghjk.apps.googleusercontent.com
-  clientSecret: process.env.GOOGLE_CLIENTSECRET, // e.g. _ASDFA%DFASDFASDFASD#FAD-
-  redirect: "http://localhost:5000/loggedIn", // this must match your google api settings
-};
+const express = require('express');
+const app = express();
+const port = 5000;git 
+const fs=require('fs');
+require('dotenv').config();
+const {google}=require('googleapis');
 
+//.env file stores the GOOGLE_CLIENTID and GOOLE_CLIENTSECRET, user is redirected to the following page when sgn in is successful. 
+const googleConfig= {
+  clientId: process.env.GOOGLE_CLIENTID,
+  clientSecret: process.env.GOOGLE_CLIENTSECRET,
+  redirect: "http://localhost:5000/loggedIn" //should match the link added in api settings
+}
+
+//scopes to grant required permissions for mailing
 const defaultScope = [
-  "https://www.googleapis.com/auth/plus.me",
+  "https://www.googleapis.com/auth/plus.me",git 
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/contacts",
   "https://www.googleapis.com/auth/contacts.readonly",
@@ -31,10 +37,7 @@ const defaultScope = [
   "https://www.googleapis.com/auth/gmail.send",
 ];
 
-/*************/
-/** HELPERS **/
-/*************/
-
+//HELPER FUNCTIONS
 function createConnection() {
   return new google.auth.OAuth2(
     googleConfig.clientId,
@@ -51,58 +54,18 @@ function getConnectionUrl(auth) {
   });
 }
 
+//Required to have a google console account with google people and gmail api enabled having the clientid and client secret
 function getGooglePeopleApi(auth) {
   return google.people({ version: "v1", auth });
 }
 
-/**********/
-/** MAIN **/
-/**********/
+//MAIN FUNCTIONS
 
-/**
- * Part 1: Create a Google URL and send to the client to log in the user.
- */
+//Create a Google URL and send to the client to log in the user.
 function urlGoogle() {
   const auth = createConnection();
   const url = getConnectionUrl(auth);
   return url;
-}
-
-/**
- * Part 2: Take the "code" parameter which Google gives us once when the user logs in, then get the user's email and id.
- */
-async function getGoogleAccountFromCode(code) {
-  const auth = createConnection();
-  const data = await auth.getToken(code);
-  const tokens = data.tokens;
-  auth.setCredentials(tokens);
-  const plus = getGooglePeopleApi(auth);
-  const me = await plus.people.get({
-    resourceName: "people/me",
-    personFields: "names,emailAddresses",
-  });
-
-  fs.writeFileSync("creds.json", JSON.stringify(me));
-  console.log(me);
-  const gmail = google.gmail({ version: "v1", auth });
-  var obj = fs.readFileSync("./creds.json");
-  obj = JSON.parse(obj);
-  var raw = makeBody(
-    ["shubhamsachdeva593@gmail.com",
-     "mandhani.mayank@gmail.com"],
-    obj.data.emailAddresses[0].value,
-    "NO",
-    "This is sent from the gmail api."
-  );
-  const result = await gmail.users.messages.send({
-    auth: auth,
-    userId: "me",
-    resource: {
-      raw: raw,
-    },
-  });
-
-  return result;
 }
 
 function makeBody(to, from, subject, message) {
@@ -128,38 +91,47 @@ function makeBody(to, from, subject, message) {
 
   return encodedMail;
 }
-async function sendMail() {
+
+//Take the "code" parameter which Google gives us once when the user logs in, then get the user's email and id.
+async function getGoogleAccountFromCode(code) {
   const auth = createConnection();
   const data = await auth.getToken(code);
   const tokens = data.tokens;
   auth.setCredentials(tokens);
-  const gmail = google.gmail({ version: "v1", auth });
+  const plus = getGooglePeopleApi(auth);
+  const me = await plus.people.get({
+    resourceName: "people/me",
+    personFields: "names,emailAddresses",
+  });
+  //Store the credentials in a file
+  fs.writeFileSync('creds.json', JSON.stringify(me))
+  //Extract the email address from the credentials
+  var myCred=fs.readFileSync('./creds.json');
+  var credObj=JSON.parse(myCred);
+  var meMail=credObj.data.emailAddresses[0].value;
   var raw = makeBody(
-    "john g <asdfasdf@hotmail.com>",
-    "john g<asfasdgf@gmail.com>",
-    "test subject",
-    "test message #2"
-  );
-
-  gmail.users.messages.send(
-    {
-      auth: auth,
-      userId: "me",
-      resource: {
-        raw: raw,
-      },
+    [ "shubhamsachdeva593@gmail.com",
+      "mandhani.mayank@gmail.com"
+    ],
+      meMail,
+    "Hello",
+    "This is sent from the GMail API."
+  );  
+  const gmail = google.gmail({ version: "v1", auth });
+  const result = await gmail.users.messages.send({
+    auth: auth,
+    userId: "me",
+    resource: {
+      raw: raw,
     },
-    function (err, response) {
-      return err || response;
-    }
-  );
-}
+  });
 
-const express = require("express");
-const app = express();
+  return result;
+}
 
 app.get("/", async (req, res) => {
   const url = await urlGoogle();
+  console.log(process.env.GOOGLE_CLIENTID);
   res.redirect(url);
 });
 
@@ -170,4 +142,6 @@ app.get("/loggedIn", async (req, res) => {
   return res.send("Some error occured!");
 });
 
-app.listen(5000, () => console.log("running"));
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}!`)
+});
